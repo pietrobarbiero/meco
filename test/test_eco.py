@@ -13,7 +13,7 @@ class TestEvoCore(unittest.TestCase):
 
         X, y = load_digits(return_X_y=True)
 
-        model = MECO(RidgeClassifier(random_state=42), 'both')
+        model = MECO(RidgeClassifier(random_state=42), 'both', max_generations=10)
         model.fit(X, y)
         x_reduced = model.transform(X)
         y_reduced = y[model.best_set_['samples']]
@@ -25,6 +25,20 @@ class TestEvoCore(unittest.TestCase):
         print(score2)
         print(model.best_set_)
         print(model.best_set_['accuracy'])
+
+        return
+
+    def test_separate_tasks(self):
+
+        from meco import MECO
+
+        X, y = load_digits(return_X_y=True)
+
+        model = MECO(RidgeClassifier(random_state=42), 'samples', max_generations=10)
+        model.fit(X, y)
+
+        model = MECO(RidgeClassifier(random_state=42), 'features', max_generations=10)
+        model.fit(X, y)
 
         return
 
