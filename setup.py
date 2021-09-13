@@ -24,9 +24,9 @@ ver_file = os.path.join('meco', '_version.py')
 with open(ver_file) as f:
     exec(f.read())
 
-DISTNAME = 'evofs'
-DESCRIPTION = 'Multi-objective Evolutionary Compression.'
-with codecs.open('README.rst', encoding='utf-8-sig') as f:
+DISTNAME = 'meco'
+DESCRIPTION = 'MECO: Multi-objective Evolutionary Compression.'
+with codecs.open('README.rst') as f:
     LONG_DESCRIPTION = f.read()
 MAINTAINER = 'P. Barbiero'
 MAINTAINER_EMAIL = 'barbiero@tutanota.com'
