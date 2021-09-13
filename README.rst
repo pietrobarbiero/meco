@@ -9,9 +9,9 @@ MECO: Multi-objective Evolutionary Compression
 
 
 
-.. |Build| image:: https://img.shields.io/travis/pietrobarbiero/eco?label=Master%20Build&style=for-the-badge
+.. |Build| image:: https://img.shields.io/travis/pietrobarbiero/meco?label=Master%20Build&style=for-the-badge
     :alt: Travis (.org)
-    :target: https://travis-ci.com/pietrobarbiero/eco
+    :target: https://travis-ci.com/pietrobarbiero/meco
 
 .. |Coverage| image:: https://img.shields.io/codecov/c/gh/pietrobarbiero/meco?label=Test%20Coverage&style=for-the-badge
     :alt: Codecov
