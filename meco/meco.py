@@ -86,16 +86,16 @@ class MECO(BaseEstimator, TransformerMixin):
         self.x_trainval_, x_test = X.iloc[trainval_index], X.iloc[test_index]
         self.y_trainval_, y_test = y[trainval_index], y[test_index]
 
-        skf2 = StratifiedKFold(n_splits=10, shuffle=True, random_state=self.random_state)
-        list_of_splits2 = [split for split in skf2.split(self.x_trainval_, self.y_trainval_)]
-        train_index, val_index = list_of_splits2[0]
-        self.x_train_, self.x_val = self.x_trainval_.iloc[train_index], self.x_trainval_.iloc[val_index]
-        self.y_train_, self.y_val = self.y_trainval_[train_index], self.y_trainval_[val_index]
+        self.skf = StratifiedKFold(n_splits=10, shuffle=True, random_state=self.random_state)
+        # list_of_splits2 = [split for split in self.skf.split(self.x_trainval_, self.y_trainval_)]
+        # train_index, val_index = list_of_splits2[0]
+        # self.x_train_, self.x_val = self.x_trainval_.iloc[train_index], self.x_trainval_.iloc[val_index]
+        # self.y_train_, self.y_val = self.y_trainval_[train_index], self.y_trainval_[val_index]
 
         # rank features
         if self.scores is None:
             fs = SelectKBest(self.score_func, k=1)
-            fs.fit(self.x_train_, self.y_train_)
+            fs.fit(self.x_trainval_, self.y_trainval_)
             self.scores_ = np.nan_to_num(fs.scores_, nan=0)
         else:
             self.scores_ = self.scores
@@ -139,16 +139,16 @@ class MECO(BaseEstimator, TransformerMixin):
             feature_counts[feature_set] += 1
 
             if self.compression == 'features':
-                x_reduced = self.x_train_.iloc[:, individual.candidate[1]]
-                y_reduced = self.y_train_
+                x_reduced = self.x_trainval_.iloc[:, individual.candidate[1]]
+                y_reduced = self.y_trainval_
                 x_test_reduced = x_test.iloc[:, individual.candidate[1]]
             elif self.compression == 'samples':
-                x_reduced = self.x_train_.iloc[individual.candidate[0]]
-                y_reduced = self.y_train_[individual.candidate[0]]
+                x_reduced = self.x_trainval_.iloc[individual.candidate[0]]
+                y_reduced = self.y_trainval_[individual.candidate[0]]
                 x_test_reduced = x_test
             elif self.compression == 'both':
-                x_reduced = self.x_train_.iloc[individual.candidate[0], individual.candidate[1]]
-                y_reduced = self.y_train_[individual.candidate[0]]
+                x_reduced = self.x_trainval_.iloc[individual.candidate[0], individual.candidate[1]]
+                y_reduced = self.y_trainval_[individual.candidate[0]]
                 x_test_reduced = x_test.iloc[:, individual.candidate[1]]
 
             model = copy.deepcopy(self.estimator)
@@ -188,12 +188,12 @@ class MECO(BaseEstimator, TransformerMixin):
 
         if self.compression == 'features' or self.compression == 'both':
             n_features = random.randint(self.min_features, self.max_features_)
-            individual_f = np.random.choice(self.x_train_.shape[1], size=(n_features,), replace=False).tolist()
+            individual_f = np.random.choice(self.x_trainval_.shape[1], size=(n_features,), replace=False).tolist()
             individual_f = np.sort(individual_f).tolist()
 
         if self.compression == 'samples' or self.compression == 'both':
             n_samples = random.randint(self.min_samples, self.max_samples_)
-            individual_s = np.random.choice(self.x_train_.shape[0], size=(n_samples,), replace=False).tolist()
+            individual_s = np.random.choice(self.x_trainval_.shape[0], size=(n_samples,), replace=False).tolist()
             individual_s = np.sort(individual_s).tolist()
 
         individual = [individual_s, individual_f]
@@ -202,16 +202,16 @@ class MECO(BaseEstimator, TransformerMixin):
 
     # using inspyred's notation, here is a single operator that performs both crossover and mutation, sequentially
     def _variate(self, random, candidates, args):
-        nextgen_f, nextgen_s = [], []
+        nextgen_f, nextgen_s = [[] for _ in range(len(candidates))], [[] for _ in range(len(candidates))]
         if self.compression == 'features' or self.compression == 'both':
             candidates_f = [c[1] for c in candidates]
             nextgen_f = self._do_variation(random, candidates_f, self.min_features,
-                                           self.max_features_, self.x_train_.shape[1], args)
+                                           self.max_features_, self.x_trainval_.shape[1], args)
 
         if self.compression == 'samples' or self.compression == 'both':
             candidates_s = [c[0] for c in candidates]
             nextgen_s = self._do_variation(random, candidates_s, self.min_samples,
-                                           self.max_samples_, self.x_train_.shape[0], args)
+                                           self.max_samples_, self.x_trainval_.shape[0], args)
 
         next_generation = [[cs, cf] for cs, cf in zip(nextgen_s, nextgen_f)]
         return next_generation
@@ -273,29 +273,33 @@ class MECO(BaseEstimator, TransformerMixin):
     # function that evaluates the feature sets
     def _evaluate(self, candidates, args):
         fitness = []
+        list_of_splits2 = [split for split in self.skf.split(self.x_trainval_, self.y_trainval_)]
+        train_index, val_index = list_of_splits2[np.random.randint(0, self.skf.n_splits)]
+        x_train_, x_val = self.x_trainval_.iloc[train_index], self.x_trainval_.iloc[val_index]
+        y_train_, y_val = self.y_trainval_[train_index], self.y_trainval_[val_index]
         for c in candidates:
             if self.compression == 'features':
-                x_reduced = self.x_train_.iloc[:, c[1]]
-                y_reduced = self.y_train_
-                x_val_reduced = self.x_val.iloc[:, c[1]]
+                x_reduced = x_train_.iloc[:, c[1]]
+                y_reduced = y_train_
+                x_val_reduced = x_val.iloc[:, c[1]]
             elif self.compression == 'samples':
-                x_reduced = self.x_train_.iloc[c[0]]
-                y_reduced = self.y_train_[c[0]]
-                x_val_reduced = self.x_val
+                x_reduced = x_train_.iloc[c[0]]
+                y_reduced = y_train_[c[0]]
+                x_val_reduced = x_val
             elif self.compression == 'both':
-                x_reduced = self.x_train_.iloc[c[0], c[1]]
-                y_reduced = self.y_train_[c[0]]
-                x_val_reduced = self.x_val.iloc[:, c[1]]
+                x_reduced = x_train_.iloc[c[0], c[1]]
+                y_reduced = y_train_[c[0]]
+                x_val_reduced = x_val.iloc[:, c[1]]
 
             model = copy.deepcopy(self.estimator)
             # scores = cross_validate(model, x_reduced, y_reduced, scoring=self.scorer_, cv=self.n_splits)
             # cv_scores = np.mean(scores["test_score"])
             model.fit(x_reduced, y_reduced)
-            cv_scores = model.score(x_val_reduced, self.y_val)
+            cv_scores = model.score(x_val_reduced, y_val)
 
             # compute numer of unused features
-            samples_removed = self.x_train_.shape[0] - len(c[0])
-            features_removed = self.x_train_.shape[1] - len(c[1])
+            samples_removed = x_train_.shape[0] - len(c[0])
+            features_removed = x_train_.shape[1] - len(c[1])
 
             # the best feature sets should contain features which are useful individually
             test_median = np.median(self.scores_[c[1]])
@@ -315,8 +319,8 @@ class MECO(BaseEstimator, TransformerMixin):
 
     # the 'observer' function is called by inspyred algorithms at the end of every generation
     def _observe(self, population, num_generations, num_evaluations, args):
-        sample_size = self.x_train_.shape[0]
-        feature_size = self.x_train_.shape[1]
+        sample_size = self.x_trainval_.shape[0]
+        feature_size = self.x_trainval_.shape[1]
         old_time = args["current_time"]
         # logger = args["logger"]
         current_time = datetime.datetime.now()
